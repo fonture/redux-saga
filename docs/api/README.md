@@ -78,31 +78,16 @@
 Creates a Redux middleware and connects the Sagas to the Redux Store
 
 - `options: Object` - A list of options to pass to the middleware. Currently supported options are:
+  - `context: Object` - initial value of the saga's context.
 
   - `sagaMonitor` : [SagaMonitor](#sagamonitor) - If a Saga Monitor is provided, the middleware will deliver monitoring events to the monitor.
-
- - `emitter` : Used to feed actions from redux to redux-saga (through redux middleware). Emitter is a higher order function, which takes a builtin emitter and returns another emitter.
-
-      **Example**
-
-      In the following example we create an emitter which "unpacks" array of actions and emits individual actions extracted from the array.
-
-     ```javascript
-     createSagaMiddleware({
-       emitter: emit => action => {
-        if (Array.isArray(action)) {
-          action.forEach(emit);
-          return
-        }
-        emit(action);
-       }
-     });
-     ```
 
   - `logger` : Function -  defines a custom logger for the middleware. By default, the middleware logs all errors and
 warnings to the console. This option tells the middleware to send errors/warnings to the provided logger instead. The logger is called with the params `(level, ...args)`. The 1st indicates the level of the log ('info', 'warning' or 'error'). The rest corresponds to the following arguments (You can use `args.join(' ')` to concatenate all args into a single String).
 
   - `onError` : Function - if provided, the middleware will call it with uncaught errors from Sagas. useful for sending uncaught exceptions to error tracking services.
+  - `effectMiddlewares` : Function [] - allows you to intercept any effect, resolve it on your own and pass to the next middleware. See [this section](/docs/advanced/Testing.md#effectmiddlwares) for a detailed example
+
 
 #### Example
 
@@ -197,7 +182,7 @@ Same as `take(pattern)` but does not automatically terminate the Saga on an `END
 - case when there is a `Just(ACTION)` (we have an action)
 - the case of `NOTHING` (channel was closed*). i.e. we need some way to map over `END`
 
-* internally all `dispatch`ed actions are going through the `stdChannel` which is geting closed when `dispatch(END)` happens
+* internally all `dispatch`ed actions are going through the `stdChannel` which is getting closed when `dispatch(END)` happens
 
 ### `take(channel)`
 
@@ -262,7 +247,7 @@ You can also pass in a channel as argument and the behaviour is the same as [tak
 ### `takeLatest(pattern, saga, ...args)`
 
 Spawns a `saga` on each action dispatched to the Store that matches `pattern`. And automatically cancels
-any previous `saga` task started previous if it's still running.
+any previous `saga` task started previously if it's still running.
 
 Each time an action is dispatched to the store. And if this action matches `pattern`, `takeLatest`
 starts a new `saga` task in the background. If a `saga` task was started previously (on the last action dispatched
@@ -498,7 +483,7 @@ also cancel the current Effect where the cancelled task was blocked (if any).
 
 If a forked task fails *synchronously* (ie: fails immediately after its execution before performing any
 async operation), then no Task is returned, instead the parent will be aborted as soon as possible (since both
-parent and child executes in parallel, the parent will abort as soon as it takes notice of the child failure).
+parent and child execute in parallel, the parent will abort as soon as it takes notice of the child failure).
 
 To create *detached* forks, use `spawn` instead.
 
@@ -777,7 +762,7 @@ function* saga() {
 
 ### `setContext(props)`
 
-Creates an effect that instructs the middleware to update it's own context. This effect extends
+Creates an effect that instructs the middleware to update its own context. This effect extends
 saga's context instead of replacing it.
 
 ### `getContext(prop)`
@@ -786,7 +771,7 @@ Creates an effect that instructs the middleware to return a specific property of
 
 ### `delay(ms, [val])`
 
-Returns a effect descriptor to block execution for `ms` milliseconds and return `val` value.
+Returns an effect descriptor to block execution for `ms` milliseconds and return `val` value.
 
 ### `throttle(ms, pattern, saga, ...args)`
 
@@ -949,7 +934,7 @@ The following example runs a race between two effects:
 import { take, call, race } from `redux-saga/effects`
 import fetchUsers from './path/to/fetchUsers'
 
-function* fetchUsersSaga {
+function* fetchUsersSaga() {
   const { response, cancel } = yield race({
     response: call(fetchUsers),
     cancel: take(CANCEL_FETCH)
@@ -982,7 +967,7 @@ The following example runs a race between two effects:
 import { take, call, race } from `redux-saga/effects`
 import fetchUsers from './path/to/fetchUsers'
 
-function* fetchUsersSaga {
+function* fetchUsersSaga() {
   const [response, cancel] = yield race([
     call(fetchUsers),
     take(CANCEL_FETCH)
@@ -1121,7 +1106,7 @@ The Channel interface defines 3 methods: `take`, `put` and `close`
 Used to implement the buffering strategy for a channel. The Buffer interface defines 3 methods: `isEmpty`, `put` and `take`
 
 - `isEmpty()`: returns true if there are no messages on the buffer. A channel calls this method whenever a new taker is registered
-- `put(message)`: used to put new message in the buffer. Note the Buffer can chose to not store the message
+- `put(message)`: used to put new message in the buffer. Note the Buffer can choose to not store the message
 (e.g. a dropping buffer can drop any new message exceeding a given limit)
 - `take()` used to retrieve any buffered message. Note the behavior of this method has to be consistent with `isEmpty`
 
@@ -1199,11 +1184,7 @@ connect a Saga to external input/output, other than store actions.
 `runSaga` returns a Task object. Just like the one returned from a `fork` effect.
 
 - `options: Object` - currently supported options are:
-
-  - `subscribe(callback): Function` - A function which accepts a callback and returns an `unsubscribe` function
-
-    - `callback(input): Function` - callback(provided by runSaga) used to subscribe to input events. `subscribe` must support registering multiple subscriptions.
-      - `input: any` - argument passed by `subscribe` to `callback` (see Notes below)
+  - `channel` - see docs for [`channel`](#channel)
 
   - `dispatch(output): Function` - used to fulfill `put` effects.
     - `output: any` -  argument provided by the Saga to the `put` Effect (see Notes below).
@@ -1215,6 +1196,9 @@ connect a Saga to external input/output, other than store actions.
   - `logger: Function` - see docs for [`createSagaMiddleware(options)`](#createsagamiddlewareoptions)
 
   - `onError: Function` - see docs for [`createSagaMiddleware(options)`](#createsagamiddlewareoptions)
+
+  - `context` : {} - see docs for [`createSagaMiddleware(options)`](#createsagamiddlewareoptions)
+  - `effectMiddlewares` : Function[] - see docs for [`createSagaMiddleware(options)`](#createsagamiddlewareoptions)
 
 - `saga: Function` - a Generator function
 
@@ -1289,7 +1273,7 @@ Provides some common buffers
 
 - `buffers.none()`: no buffering, new messages will be lost if there are no pending takers
 
-- `buffers.fixed(limit)`: new messages will be buffered up to `limit`. Overflow will raises an Error. Omitting a `limit` value will result in a limit of 10.
+- `buffers.fixed(limit)`: new messages will be buffered up to `limit`. Overflow will raise an Error. Omitting a `limit` value will result in a limit of 10.
 
 - `buffers.expanding(initialSize)`: like `fixed` but Overflow will cause the buffer to expand dynamically.
 
@@ -1410,6 +1394,7 @@ For testing purposes only.
 | takeLeading          | No                                                          |
 | throttle             | No                                                          |
 | debounce             | No                                                          |
+| retry                | Yes                                                         |
 | take                 | Yes                                                         |
 | take(channel)        | Sometimes (see API reference)                               |
 | takeMaybe            | Yes                                                         |
